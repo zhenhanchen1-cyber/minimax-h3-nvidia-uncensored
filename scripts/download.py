@@ -51,6 +51,9 @@ TIERS = {
 }
 
 # 文本编码器：无审查 / 官方
+# 注意：8GB 档（minimal）目前**没有**体积可接受的无审查编码器（最小 15.7G NVFP4 仅 Blackwell、
+# 其次 17.8G eraiko GGUF Q5_K_M），所以 minimal 档下的是官方 Q2_K_M 小档，先把流程跑通。
+# 另外请阅读 README「关于无审查的真相」：编码器只做条件编码，换 heretic 并不等于解锁内容。
 TEXT_ENCODERS = {
     ("uncensored", "minimal"): ("unsloth/MiniMax-H3-GGUF", "qwen3vl_32b_minimax_h3-Q2_K_M.gguf", 13.1),
     ("uncensored", "balanced"): ("eraiko/Qwen3-VL-32B-Ultra-Heretic-Minimax-H3-GGUF",
@@ -146,8 +149,12 @@ def main():
         files.append(("Momoking/Qwen3-VL-32B-Heretic-MiniMax-H3-NVFP4",
                       "qwen3vl_32b_heretic_minimax_h3_nvfp4.safetensors", "text_encoders", "NVFP4 无审查 15.7G"))
     else:
-        repo, rpath, gb = TEXT_ENCODERS[("uncensored" if a.uncensored else "official", tier)]
-        files.append((repo, rpath, "text_encoders", f"文本编码器 {gb}G"))
+        key = "uncensored" if a.uncensored else "official"
+        repo, rpath, gb = TEXT_ENCODERS[(key, tier)]
+        note = f"文本编码器 {gb}G"
+        if key == "uncensored" and tier == "minimal":
+            note += "（提示：8GB 档无小体积无审查编码器，此为官方小档；无审查见 README「真相」节）"
+        files.append((repo, rpath, "text_encoders", note))
 
     print(f"共 {len(files)} 个文件，下载到 {M}\n")
     for f in files:
