@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 📖 先读上手文档（80% 的问题这里有答案）
+    url: https://github.com/zhenhanchen1-cyber/minimax-h3-nvidia-uncensored/blob/main/docs/%E6%95%99%E7%A8%8B-%E6%96%87%E7%94%9F%E8%A7%86%E9%A2%91%E4%B8%8E%E5%9B%BE%E7%94%9F%E8%A7%86%E9%A2%91.md
+    about: 环境自检 / 六节点核对表 / 参数速查 / 排障表
+  - name: 🤔 关于「无审查文本编码器」的真相
+    url: https://github.com/zhenhanchen1-cyber/minimax-h3-nvidia-uncensored#%EF%B8%8F-%E5%85%88%E8%AF%BB%E8%BF%99%E4%B8%AA%E6%97%A0%E5%AE%A1%E6%9F%A5%E6%96%87%E6%9C%AC%E7%BC%96%E7%A0%81%E5%99%A8%E7%9A%84%E7%9C%9F%E7%9B%B8
+    about: 换 heretic 编码器到底有没有用？先看这节再决定要不要下载 26GB

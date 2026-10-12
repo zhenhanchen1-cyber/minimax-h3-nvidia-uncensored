@@ -1,0 +1,45 @@
+name: 🐞 报错 / 求助
+description: 跑不起来、报错、出片异常 —— 按下面填能最快定位
+title: "[问题] "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **先自查这三件事**（80% 的问题出在这里）：
+        1. 音频 VAE 用的是不是 **fp32**？（fp16 → 没声音）
+        2. 16GB 及以下显存，启动有没有加 `--lowvram`？
+        3. ComfyUI 是不是 **0.30.0+**？`ComfyUI-GGUF` 节点装了吗？
+        详细排查表见 [docs/教程-文生视频与图生视频.md](https://github.com/zhenhanchen1-cyber/minimax-h3-nvidia-uncensored/blob/main/docs/%E6%95%99%E7%A8%8B-%E6%96%87%E7%94%9F%E8%A7%86%E9%A2%91%E4%B8%8E%E5%9B%BE%E7%94%9F%E8%A7%86%E9%A2%91.md) 第八节。
+  - type: input
+    id: gpu
+    attributes:
+      label: 显卡 + 显存
+    validations:
+      required: true
+  - type: dropdown
+    id: stage
+    attributes:
+      label: 卡在哪一步
+      options:
+        - 安装（install.sh / 依赖）
+        - 下载模型（download.sh）
+        - 启动 ComfyUI
+        - 加载工作流 / 节点报红
+        - 生成时报错
+        - 生成成功但结果异常（无声 / 音画不同步 / 画面崩坏）
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: 具体现象
+      description: 贴报错全文（不要截图里的半句话），越完整定位越快
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: 你已经试过什么
+    validations:
+      required: false
