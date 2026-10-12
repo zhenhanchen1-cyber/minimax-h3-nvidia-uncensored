@@ -18,6 +18,9 @@
 > **🔥 一句话卖点**：8GB 显存就能跑 · **4 步出片** · 一条命令自动装 + 自动下模型 · **9 套现成工作流** · **15+ 模型按显卡自选**
 >
 > **姊妹项目**：昇腾 910B/910C 路线 → [minimax-h3-ascend-uncensored](https://gitcode.com/nxxwjbl/minimax-h3-ascend-uncensored)（真机实测 · 免费算力）
+>
+> **🟢 活跃维护中** · 最近更新：2026-10-12（新增 Spectrum / 潜空间放大增强件）·
+> 完整历史见 [CHANGELOG.md](CHANGELOG.md) —— 内容可以被复制，**持续的实测与更新不能**。
 
 ---
 
@@ -393,7 +396,11 @@ MiniMax H3 Community License (it defines an "Applicable Territory" and a commerc
 
 ## 许可与致谢
 
-本仓库脚本与文档采用 MIT。模型权重与第三方节点版权归各自作者，详见 [NOTICE.md](NOTICE.md)。
+本仓库脚本与文档采用 MIT。你可以自由使用、修改、二次分发 ——
+**只要求一件事：保留原作者署名与本仓库链接**（这也是 MIT 的条款）。
+如果你做了改进，欢迎开 PR 回流，比另起一个副本更有价值。
+
+模型权重与第三方节点版权归各自作者，详见 [NOTICE.md](NOTICE.md)。
 特别感谢：[Comfy-Org](https://huggingface.co/Comfy-Org/MiniMax-H3)、[unsloth](https://huggingface.co/unsloth/MiniMax-H3-GGUF)、
 [MATLOWAI](https://huggingface.co/MATLOWAI/minimax-h3-fused-turbo-int8-convrot)、[eraiko](https://huggingface.co/eraiko/Qwen3-VL-32B-Ultra-Heretic-Minimax-H3-GGUF)、
 [Momoking](https://huggingface.co/Momoking/Qwen3-VL-32B-Heretic-MiniMax-H3-NVFP4)、[ComfyUI](https://github.com/Comfy-Org/ComfyUI)。
