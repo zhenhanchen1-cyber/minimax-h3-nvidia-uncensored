@@ -30,6 +30,7 @@
 - [三种玩法](#-三种玩法)
 - [模型全家桶（按自己显卡挑）](#-模型全家桶按自己显卡挑)
 - [加速全家桶（按收益排序）](#-加速全家桶按收益排序)
+- [社区增强件（Spectrum / 潜空间放大）](#-社区增强件强烈推荐装了就能用)
 - [工作流清单](#-工作流清单)
 - [⚠️ 先读这个：「无审查文本编码器」的真相](#️-先读这个无审查文本编码器的真相)
 - [注意事项](#-注意事项)
@@ -222,6 +223,37 @@ bash scripts/download.sh --nvfp4           # RTX 50 系用 NVFP4 编码器
 
 > 社区还有一批**缓存类加速节点**（block cache / first-block cache / TE-Speed 等），最高 star 约 700，
 > 属于"再榨一点"的手段，建议先跑通基线再装。
+
+---
+
+## 🔌 社区增强件（强烈推荐，装了就能用）
+
+下面这几个是 H3 社区**最火的单点工具**（star 数远超同类的部署仓库）。它们解决的是同一个痛点：**H3 太慢**。
+本仓库不强装它们，避免把"一键跑通"变成"一键装崩"，所以做成可选安装：
+
+```bash
+bash scripts/install_extras.sh              # 全部装
+bash scripts/install_extras.sh spectrum     # 只装某一个
+```
+
+| 增强件 | 做什么 | 收益 | 代价 / 注意 |
+|---|---|---|---|
+| **[ComfyUI-Spectrum-MiniMax-H3](https://github.com/xmarre/ComfyUI-Spectrum-MiniMax-H3)**（682★） | 用 Chebyshev 岭回归拟合 transformer 后的隐层特征，在"预测步"**整个跳过 transformer 计算** | **省 30~35% 时间**（20 步里实际只算 11~13 步）；免训练、零依赖 | ⚠️ **不是无损**：快速动作、眼睛/手指细节偶尔畸形，同 seed 也可能不同 → 关键出片前 A/B 对比。不要和 EasyCache/LazyCache 同分支用 |
+| **[Comfyui_Minimax_h3_latent_Upscaler](https://github.com/LBH-123-AI/Comfyui_Minimax_h3_latent_Upscaler)**（707★） | 在 **24 通道 VAE latent 上直接放大**（1×~4×），跳过 H3 那个约 50 亿参数 VAE 的"解码→放大→重编码"往返 | 低分辨率出片 + 潜空间放大，**比直接生成高分辨率快得多**，还避免朴素插值的重影/双影 | ⚠️ **省时间不省显存**（精化仍跑目标分辨率）。模型约 691MB 放 `models/latent_upscale_models/` |
+| [Kijai TAE（微型预览解码器）](https://github.com/Kijai/ComfyUI-KJNodes) | 快速预览解码，比 latent2rgb 快 | 预览省时间 | 只用于预览，别拿它出片 |
+| 缓存类节点（block cache / first-block cache / TE-Speed） | 缓存中间结果跳过计算 | 再榨一点速度 | 与 Spectrum 冲突，二选一 |
+
+**推荐组合**（按你的显存档）：
+
+| 场景 | 组合 |
+|---|---|
+| **8~16GB** | 低分辨率（0.4MP）+ 4 步 Turbo + **Latent Upscaler 放大** ← 这条路线性价比最高 |
+| **24GB+** | 0.6~0.98MP + 6~8 步 + **Spectrum**（有画质要求就关掉 A/B 一次） |
+| 低显存但想要高清 | 480P 出片 → Latent Upscaler 2× → 轻步数精化 |
+
+> **节点串联位置**（最容易接错的地方）：
+> `H3 模型加载 → LoRA / 模型补丁 → MiniMax H3 Sigma Shift → **Spectrum** → Guider / Sampler`
+> `低分辨率 H3 Latent → **Latent Upscaler** → 精化 / 再采样 → VAE Decode`
 
 ---
 
