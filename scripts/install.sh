@@ -7,7 +7,10 @@
 set -euo pipefail
 
 COMFY_HOME="${1:-${COMFY_HOME:-$HOME/ComfyUI}}"
-COMFY_COMMIT="bd34f338ac505ea79e43968753968a464060e609"
+COMFY_COMMIT="${COMFY_COMMIT:-bd34f338ac505ea79e43968753968a464060e609}"
+# 必须在任何 cd 之前算好，否则后面 dirname 会相对当前目录解析（曾导致工作流拷贝失败）
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(dirname "$SCRIPT_DIR")"
 PIP_MIRROR="https://pypi.tuna.tsinghua.edu.cn/simple"
 
 echo "=== [1/5] 环境检查 ==="
@@ -24,7 +27,16 @@ PY
 
 echo "=== [2/5] 克隆 ComfyUI（锁定 commit，保证可复现）==="
 if [ ! -d "$COMFY_HOME/.git" ]; then
-    git clone https://github.com/Comfy-Org/ComfyUI.git "$COMFY_HOME"
+    if [ -d "$COMFY_HOME" ] && [ -n "$(ls -A "$COMFY_HOME" 2>/dev/null)" ]; then
+        # 目录已存在且非空（比如 models 已软链到数据盘）：克隆到临时目录再拷进去
+        echo "  目录非空（保留已有内容，如 models 软链），改用临时目录克隆"
+        TMP="$(mktemp -d)"
+        git clone https://github.com/Comfy-Org/ComfyUI.git "$TMP/comfy"
+        cp -a "$TMP/comfy/." "$COMFY_HOME/" 2>/dev/null || true
+        rm -rf "$TMP"
+    else
+        git clone https://github.com/Comfy-Org/ComfyUI.git "$COMFY_HOME"
+    fi
 fi
 cd "$COMFY_HOME"
 git fetch --depth 1 origin "$COMFY_COMMIT"
@@ -58,7 +70,6 @@ clone_node ComfyUI-KJNodes         https://github.com/kijai/ComfyUI-KJNodes.git
 clone_node ComfyUI-MiniMax-H3-Turbo https://github.com/Larryvrh/ComfyUI-MiniMax-H3-Turbo.git
 
 echo "=== [5/5] 安装工作流 ==="
-REPO_DIR="$(cd "$(dirname "$(dirname "${BASH_SOURCE[0]}")")" && pwd)"
 mkdir -p "$COMFY_HOME/user/default/workflows/minimax-h3-nvidia"
 cp "$REPO_DIR"/workflows/*.json "$COMFY_HOME/user/default/workflows/minimax-h3-nvidia/"
 

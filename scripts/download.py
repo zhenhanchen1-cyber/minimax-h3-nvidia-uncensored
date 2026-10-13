@@ -78,14 +78,17 @@ def dl(repo, rpath, subdir, note=""):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     size = int(requests.head(url, allow_redirects=True, timeout=60).headers["Content-Length"])
     fname = os.path.basename(path)
-    if os.path.exists(path) and os.path.getsize(path) == size:
+    done = path + ".done"
+    # 注意：文件是预先 truncate 到全尺寸的，只比大小会把"没下完的"误判为已完成
+    # 所以额外用 .done 标记判断是否真的下完过
+    if os.path.exists(path) and os.path.getsize(path) == size and os.path.exists(done):
         print(f"[跳过] {fname} ({size/1e9:.2f}GB 已存在)")
         return
+    if os.path.exists(done):
+        os.remove(done)
     print(f"[下载] {fname} ({size/1e9:.2f}GB) {note}", flush=True)
-    if not os.path.exists(path):
+    if not os.path.exists(path) or os.path.getsize(path) != size:
         open(path, "wb").truncate(size)
-    elif os.path.getsize(path) != size:
-        open(path, "r+b").truncate(size)
 
     ranges, s = [], 0
     while s < size:
@@ -114,6 +117,13 @@ def dl(repo, rpath, subdir, note=""):
             os.remove(pf)
     with ThreadPoolExecutor(max_workers=NCHUNK) as ex:
         list(ex.map(get, ranges))
+    # 只有所有分片都成功、且残留分片文件都被清掉，才算真正完成
+    leftover = [f for f in os.listdir(os.path.dirname(path))
+                if f.startswith(os.path.basename(path) + ".p")]
+    if leftover:
+        print(f"[未完成] {fname} 仍有 {len(leftover)} 个分片未下完，重跑本命令可续传", flush=True)
+        return
+    open(done, "w").close()
     print(f"[完成] {fname}", flush=True)
 
 
