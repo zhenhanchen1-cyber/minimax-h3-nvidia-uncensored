@@ -45,18 +45,21 @@
 
 ## 🎯 30 秒决策：我的卡能跑到什么程度？
 
-| 你的显存 | 主模型 | 文本编码器 | 分辨率 / 时长 | 预期 |
+| 你的显存 | 主模型 | 文本编码器（**必须 safetensors**） | 分辨率 / 时长 | 预期 |
 |---|---|---|---|---|
-| **8GB** | GGUF Q2_K（6.7G） | GGUF Q2_K_M（13.1G，分层卸载） | 480P / 5s | ⚠️ 能跑，慢（分钟级，靠极限卸载） |
-| **12GB** | GGUF Q3_K（8.8G） | GGUF Q2~Q3（卸载） | 480P / 5s | ✅ 可用 |
-| **16GB** | 融合模型 21G 或 GGUF Q4_K（11.4G） | GGUF Q4 / NVFP4（50 系） | 576P~768P / 5~10s | ✅ **11 GiB / 65 秒**（社区实测） |
-| **24GB（4090）** | 融合模型 21G / fp8 21G / GGUF Q5 | TE Q4~Q5 GGUF | 768P / 10s | ✅ 畅快 |
+| **8GB** | GGUF Q2_K（6.7G） | INT8 ConvRot 26.4G（靠系统内存卸载） | 480P / 5s | ⚠️ 能跑，慢（分钟级，靠极限卸载） |
+| **12GB** | GGUF Q3_K（8.8G） | 同上（卸载） | 480P / 5s | ✅ 可用 |
+| **16GB** | 融合模型 21G 或 GGUF Q4_K（11.4G） | 同上（50 系可换 NVFP4 15.7G） | 576P~768P / 5~10s | ✅ **11 GiB / 65 秒**（社区实测） |
+| **24GB（4090）** | 融合模型 21G / fp8 21G / GGUF Q5 | 同上（或官方 INT8 27.1G） | 768P / 10s | ✅ 畅快 |
 | **32GB（5090）** | fp8 或 NVFP4 / pruned_bf16 | **NVFP4（15.7G）** | 768P / 10~15s | ✅ 更快 |
-| **48GB+** | 完整 BF16（66G）/ fp8 全精度 | Q8 GGUF 或 INT8 | 768P~1080P | ✅ 满血 |
+| **48GB（4090-48G 实测）** | 融合 Turbo 21G | INT8 ConvRot 26.4G | 0.4~0.98MP / 5s | ✅ **实测 54~243 秒**（见下表） |
 
-> 文本编码器是低显存的**最大瓶颈**（Qwen3-VL-32B，即使 Q5 也要 17.8GB）——
-> 解决办法：**GGUF 分层加载**（ComfyUI-GGUF 节点）或 **NVFP4**（50 系仅 15.7GB）。
-> 更低门槛：社区已实测 **4GB 笔记本**（Q2_K 编码器 + w4a8 主模型 + 8 步 Turbo LoRA，低分辨率约 12 分钟/条）。
+> ⚠️ **文本编码器不要用 GGUF**（2026-10-13 真机验证）：所有 H3 的 GGUF 编码器仓库都**没有 mmproj 视觉塔**，
+> `ClipLoaderGGUF` 必定崩溃（`TypeError: the JSON object must be str...`）。
+> 必须用 **safetensors + 官方 `CLIPLoader`**；低显存靠 ComfyUI 的卸载机制（`--lowvram` / RAM offload）扛，
+> 而不是靠换更小的 GGUF 编码器。`download.py` 已改为默认只下 safetensors。
+> 文本编码器仍是低显存的**最大瓶颈**（Qwen3-VL-32B，最小可用档就是 26.4GB）；50 系可换 NVFP4（15.7GB）。
+> 更低门槛：社区有 **4GB 笔记本**跑通的记录（低分辨率、分钟级）。
 
 ---
 
@@ -66,7 +69,7 @@
    社区实测 **16GB 卡上 4 步生成仅占 11 GiB / 65 秒**；8GB 卡配合极限卸载同样能跑
 2. **一键脚本 + 全模型自选** —— 从 6.7GB 的 Q2_K 到 66GB 的 BF16，从 4 步蒸馏到 25 步精修，
    **15+ 主模型 / 8 种文本编码器**全列出，按自己显卡挑；`install.sh` + `download.sh` 自动按显存选档
-3. **9 套现成工作流** —— MATLOWAI 4 步 SLA 全套 + 官方 i2v + 低显存 FFN 分块版，拖进 ComfyUI 即用
+3. **13 套现成工作流** —— MATLOWAI 4 步全套（含 4 套**无SLA版**，驱动不够也能跑）+ 官方 i2v + 低显存 FFN 分块版，拖进 ComfyUI 即用
    （另附工作流 UI→API 转换脚本，可脚本化批量出片）
 
 ## ⚡ N 卡 vs 昇腾：为什么同样的视频 N 卡更省力
@@ -124,6 +127,14 @@ N 卡（CUDA）生态有昇腾目前没有的一整套加速件，同样的成�
 
 ## 🚀 快速开始（两条命令）
 
+**先确认三件事**（真机踩过，见 [docs/真机踩坑与前置要求.md](docs/真机踩坑与前置要求.md)）：
+
+| 项目 | 要求 | 不满足会怎样 |
+|---|---|---|
+| 磁盘可用空间 | **≥ 60GB**（balanced 档模型约 48.25GB + ComfyUI 约 5GB） | 下到一半磁盘满；云主机"数据盘 50G"刚好不够 |
+| 显卡驱动 | 想用 **SLA 加速**需驱动支持 **cu130+** | SLA 节点报 `detect_k_anchor kernel launch failed`，改用「无SLA版」工作流 |
+| 文本编码器格式 | **必须 safetensors**（GPT 式 GGUF 编码器不可用） | `ClipLoaderGGUF` 崩（缺 mmproj 视觉塔），`download.py` 已默认只下 safetensors |
+
 ```bash
 git clone https://gitcode.com/nxxwjbl/minimax-h3-nvidia-uncensored.git
 cd minimax-h3-nvidia-uncensored
@@ -135,6 +146,9 @@ bash scripts/download.sh     # ② 按显存自动选档下载（会先问你是
 cd ~/ComfyUI && python main.py --listen                 # 24GB 及以上
 cd ~/ComfyUI && python main.py --listen --lowvram       # 16GB 及以下
 ```
+
+> **磁盘不够又不想扩盘？** 把 ComfyUI 装系统盘、模型放数据盘：
+> `COMFY_HOME=/root/ComfyUI bash scripts/install.sh && ln -sfn /hy-tmp/models /root/ComfyUI/models`
 
 浏览器打开 `http://127.0.0.1:8188`，从 `Workflows → minimax-h3-nvidia` 导入对应工作流即可。
 
@@ -203,23 +217,36 @@ bash scripts/download.sh --nvfp4           # RTX 50 系用 NVFP4 编码器
 > 另有 [Abiray/MiniMax-H3-Pruned-GGUF](https://huggingface.co/Abiray/MiniMax-H3-Pruned-GGUF) 的 Q3~Q8 系列可作备选
 > （pruned 架构压到 8.9G~21.6G，更贴消费级显卡）。
 
-### ④ 文本编码器（**先看体积和量化档，别看文件名**）
+### ④ 文本编码器（**只认 safetensors，GGUF 一律不可用**）
+
+✅ **可用（safetensors + 官方 `CLIPLoader`，`type` 选 `minimax`）**：
 
 | 文件 | 大小 | 适用 |
 |---|---|---|
 | `qwen3vl_32b_heretic_minimax_h3_nvfp4.safetensors` | **15.68G** | **仅 Blackwell（50 系）** |
-| `qwen3vl_32b_minimax_h3-Q2_K_M.gguf` | 13.10G | 低显存保底 |
 | `qwen3vl_32b_minimax_h3_nvfp4_awq` | 15.69G | 50 系（官方参考档） |
-| `qwen3-vl-32b-ultra-heretic-minimax-h3-q5_k_m.gguf` | 17.81G | 24GB+ |
-| `qwen3-vl-32b-ultra-heretic-minimax-h3-q6_k.gguf` | 20.64G | 32GB+ |
-| `qwen3vl_32b_h3_ultra_uncensored_heretic_int8_convrot` | 26.36G | INT8 路线 |
-| `qwen3-vl-32b-ultra-heretic-minimax-h3-q8.gguf` | 26.74G | 48GB+ |
-| `qwen3vl_32b_minimax_h3_int8_convrot` | 27.14G | 通用 |
+| `qwen3vl_32b_h3_ultra_uncensored_heretic_int8_convrot` | 26.36G | ⭐ **本仓库默认**（去审查 + 通用） |
+| `qwen3vl_32b_minimax_h3_int8_convrot` | 27.14G | 官方原版，通用 |
 
-来源：[eraiko GGUF](https://huggingface.co/eraiko/Qwen3-VL-32B-Ultra-Heretic-Minimax-H3-GGUF) ·
+❌ **不可用（GGUF 文本编码器，全部缺 mmproj 视觉塔，加载即崩）**：
+
+| 文件 | 大小 | 为什么不行 |
+|---|---|---|
+| `qwen3vl_32b_minimax_h3-Q2_K_M.gguf` | 13.10G | 缺视觉塔 → `ClipLoaderGGUF` 崩 |
+| `qwen3-vl-32b-ultra-heretic-minimax-h3-q5_k_m.gguf` | 17.81G | 同上（eraiko 仓库实测确认） |
+| `qwen3-vl-32b-ultra-heretic-minimax-h3-q6_k.gguf` | 20.64G | 同上 |
+| `qwen3-vl-32b-ultra-heretic-minimax-h3-q8.gguf` | 26.74G | 同上 |
+
+> ⚠️ **这是 2026-10-13 真机验证的结论，也是很多教程的过时点**：
+> H3 的文本编码器是 Qwen3-VL（多模态），**GGUF 仓库里没有 mmproj 视觉塔**，
+> `ClipLoaderGGUF` 会报 `TypeError: the JSON object must be str, bytes or bytearray, not NoneType`
+> （日志先出现 `No mmproj file found for ...`）。GGUF 只适合**主模型**，编码器必须 safetensors。
+> 低显存不是靠"换小编码器"解决，而是靠**卸载到内存**（`--lowvram` / RAM offload）。
+
+来源：[ethanfel INT8 ConvRot](https://huggingface.co/ethanfel/Qwen3-VL-32B-Ultra-Heretic-H3-ComfyUI-INT8-ConvRot) ·
 [Momoking NVFP4](https://huggingface.co/Momoking/Qwen3-VL-32B-Heretic-MiniMax-H3-NVFP4) ·
-[unsloth GGUF](https://huggingface.co/unsloth/MiniMax-H3-GGUF) ·
-[Comfy-Org](https://huggingface.co/Comfy-Org/MiniMax-H3)
+[Comfy-Org](https://huggingface.co/Comfy-Org/MiniMax-H3) ·
+~~eraiko GGUF / unsloth GGUF~~（H3 不可用）
 
 > ⚠️ 选型理由见下方[「真相」章节](#️-先读这个无审查文本编码器的真相)。
 > 显存极紧？关注 **ClipProj** 路线：Qwen3-VL 4B/8B 编码器 + 学习到的投影，把编码器从 15.7GB 压到 **4.5GB**。
@@ -241,8 +268,8 @@ bash scripts/download.sh --nvfp4           # RTX 50 系用 NVFP4 编码器
 | 手段 | 怎么做 | 收益 |
 |---|---|---|
 | **融合 Turbo 模型** | 直接用 21GB 融合模型 | 8 步 → **4 步**，速度翻倍 |
-| **SLA 稀疏注意力** | 装 `ComfyUI-PlagueKind-Nodes`，用 `H3SLAAttention`（sparsity 0.9 / block 64） | 跳过 90% 注意力；作者称音轨更饱满 |
-| **GGUF 量化** | 装 `ComfyUI-GGUF`，用 Q2~Q5 档 | 让 8~16GB 卡也能跑 |
+| **SLA 稀疏注意力** | 装 `ComfyUI-PlagueKind-Nodes`，用 `H3SLAAttention`（sparsity 0.9 / block 64） | 跳过 90% 注意力；作者称音轨更饱满。⚠️ **需驱动支持 cu130+**，否则报 `detect_k_anchor` 崩，改用「无SLA版」工作流 |
+| **GGUF 量化（仅限主模型）** | 装 `ComfyUI-GGUF`，用 Q2~Q5 档加载 **diffusion model** | 让 8~16GB 卡也能跑。⚠️ **GGUF 文本编码器不可用**（缺 mmproj 视觉塔，必崩） |
 | **NVFP4** | 50 系专用权重 | 权重减半 + 提速 |
 | **FFN 分块** | KJNodes 的 `MiniMaxChunkFeedForward` | 低显存档再省一点（见 `低显存-*.json`） |
 | **SageAttention** | `pip install sageattention` | 注意力加速 |
@@ -298,12 +325,18 @@ bash scripts/install_extras.sh spectrum     # 只装某一个
 | `01_官方-图生视频-i2v.json` | 图生视频 | Comfy-Org 官方模板，可作对照基线 |
 | `MATLOWAI-05_ref2va_4step_sla.json` | **参考图锁角色** | ⭐ 锁人物 / 服装 / 画风（需换 ref2va 主模型） |
 | `低显存-*.json`（3 个） | 各类型 | 加了 FFN 分块，**16GB 及以下用这套**；24GB+ 别用（反而更慢） |
+| `MATLOWAI-01_文生视频_无SLA版.json` | **文生视频** | ⭐ **驱动 < cu130 就用这个**（SLA 节点已摘掉） |
+| `MATLOWAI-04_i2v_无SLA版.json` | **图生视频** | ⭐ 主力档的无 SLA 版 |
+| `MATLOWAI-05_ref2va_无SLA版.json` | **参考图锁角色** | 无 SLA 版 |
+| `低显存-04_i2v_无SLA版.json` | 图生视频 | 低显存 **+** 无 SLA 双保险 |
 
-> ⚠️ **两个已知坑（2026-10-13 真机验证）**
+> ⚠️ **三个已知坑（2026-10-13 真机验证，详见 [docs/真机踩坑与前置要求.md](docs/真机踩坑与前置要求.md)）**
 > 1. **不要用 GGUF 文本编码器** —— 所有 H3 的 GGUF 编码器仓库都没有 mmproj 视觉塔，
 >    `ClipLoaderGGUF` 会崩。必须用 safetensors + 官方 `CLIPLoader`（`download.py` 已改成默认下 safetensors）。
-> 2. **`H3SLAAttention` 需要 cu130+ 驱动**，否则报 `CUDA driver version is insufficient`。
->    驱动偏旧时把 SLA 节点旁路（模型直连 SigmaShift）即可正常出片，只是慢一些。
+> 2. **`H3SLAAttention` 需要 cu130+ 驱动**，否则报 `CUDA driver version is insufficient` /
+>    `detect_k_anchor kernel launch failed`。驱动偏旧时用上面的「**无SLA版**」工作流，即可正常出片（只是慢一些）。
+> 3. **磁盘要留 ≥ 60GB** —— balanced 档模型实测约 **48.25GB**（主模型 21G + 编码器 24.6GiB + 两个 VAE + 两个 LoRA），
+>    再加 ComfyUI 约 5GB。云主机"数据盘 50G"刚好不够：要么扩盘，要么把 models 软链到数据盘。
 
 > 依赖节点：`ComfyUI-GGUF`（GGUF 加载）、`ComfyUI-PlagueKind-Nodes`（SLA）、
 > `ComfyUI-MAINodes`（de-rope / DyRoPE / 音频）、`KJNodes`（FFN 分块）。
@@ -344,11 +377,14 @@ bash scripts/install_extras.sh spectrum     # 只装某一个
 3. 融合模型（21GB）与官方模板的模型名不同，**工作流里要对应改选**
 4. 单次最长约 15 秒（训练区间 124~362 帧，必须落在 `17k+5` 网格上）；更长用分段接力
 5. **CFG 必须 1.0** —— H3 是蒸馏模型，无需 CFG，设大于 1 会崩
-6. NVFP4 权重**仅限 Blackwell（RTX 50 系）**，40 系用 fp8 / GGUF
-7. GGUF 出片画质略低于 fp8/bf16，属正常权衡
+6. NVFP4 权重**仅限 Blackwell（RTX 50 系）**，40 系用 fp8 / INT8
+7. **GGUF 只用于主模型** —— GGUF 文本编码器缺 mmproj 视觉塔、不可用；GGUF 主模型画质略低于 fp8/bf16，属正常权衡
 8. 模型放 **NVMe 固态**，放机械盘 offload 速度会慢十倍
-9. **许可提醒**：MiniMax H3 Community License 有 "Applicable Territory"（排除部分地区）与商业营收门槛，
-   使用前请阅读模型仓库里的 LICENSE 全文（详见 [NOTICE.md](NOTICE.md)）
+9. **磁盘留 ≥ 60GB** —— balanced 档实测约 48.25GB + ComfyUI 约 5GB；云主机数据盘偏小时，
+   把 ComfyUI 装系统盘、`models` 软链到数据盘（命令见「快速开始」）
+10. **云主机随时会被回收** —— 出片后立刻 scp 拉回本地并校验字节数，别把成片留在云上
+11. **许可提醒**：MiniMax H3 Community License 有 "Applicable Territory"（排除部分地区）与商业营收门槛，
+    使用前请阅读模型仓库里的 LICENSE 全文（详见 [NOTICE.md](NOTICE.md)）
 
 ## ❓ FAQ
 
@@ -362,7 +398,16 @@ bash scripts/install_extras.sh spectrum     # 只装某一个
 （原因见上面的「真相」小节）。真正决定"能不能生成、生成得好不好"的，是提示词写法和模型自身的能力上限。
 
 **Q：4090 24GB 怎么配最舒服？**
-融合模型 21GB + TE Q4_K_M GGUF（19.8G，卸载）+ 4 步 + SLA，768P/10 秒很流畅；想更好画质换 fp8 + Q5。
+融合模型 21GB + 无审查 INT8 编码器 26.4G（卸载）+ 4 步，768P/10 秒档很流畅；
+驱动支持 cu130 就开 SLA，否则用「无SLA版」工作流。想更好画质换 fp8 / pruned_bf16 + 6~8 步。
+（我们实测用的是 **4090-48G 魔改版**：0.6MP/4 步 **84 秒**、6 步 **117 秒**、0.98MP/6 步 **243 秒**；
+24GB 卡因为要 offload，会明显更慢。）
+
+**Q：我按老教程下了 GGUF 文本编码器，`ClipLoaderGGUF` 直接报错？**
+这是**教程过时**，不是你的环境问题：H3 的文本编码器是 Qwen3-VL（多模态），
+而所有 H3 的 GGUF 编码器仓库都**没放 mmproj 视觉塔**，构建不出 tokenizer → 必崩。
+删掉那个 GGUF 文件，改用 safetensors 编码器 + 官方 `CLIPLoader`（`type` = `minimax`）即可。
+详见 [docs/真机踩坑与前置要求.md](docs/真机踩坑与前置要求.md) 第二节。
 
 **Q：远景人脸糊 / 细节有颗粒感 / ref2video 比 i2v 软，能调吗？**
 **不能**。MiniMax 官方在 AMA 里确认这三项都出在 DiT 与训练阶段，是当前模型的**能力上限**——
@@ -374,6 +419,7 @@ bash scripts/install_extras.sh spectrum     # 只装某一个
 
 | 文档 | 内容 |
 |---|---|
+| [`docs/真机踩坑与前置要求.md`](docs/真机踩坑与前置要求.md) | ⭐ **先读这个**：开机自检 → 磁盘不够的三种解法 → GGUF 编码器为何不可用 → SLA 崩溃的完整因果链 → 已修的两个脚本 bug → 远程运维小坑 → 实测数据 |
 | [`docs/教程-文生视频与图生视频.md`](docs/教程-文生视频与图生视频.md) | 从零到出片：环境自检 → 放模型 → 六节点核对表 → 三种玩法 → 提示词写法 → 参数速查 → 排障表 |
 | [`docs/模型选择指南.md`](docs/模型选择指南.md) | 主模型 × 文本编码器 × 量化档三个自由度怎么组合，附「抄作业」组合表 |
 | [`NOTICE.md`](NOTICE.md) | 所有第三方权重 / 节点 / 工作流的出处与许可 |
@@ -407,9 +453,14 @@ text-to-video, image-to-video, reference-locked characters, native synchronized 
   (GGUF / SLA / MAINodes / KJNodes); `bash scripts/download.sh` auto-picks the right model tier for your VRAM.
 - **Runs from 8GB VRAM**: GGUF Q2_K diffusion model (6.7GB) + layered offload; 16GB is comfortable
   (community-measured **11 GiB peak / 65 s** for a 4-step generation); 24GB (RTX 4090) is fast.
-- **15+ diffusion checkpoints, 8 text encoders** (GGUF / NVFP4 / INT8), 9 ready-to-use ComfyUI workflows.
+- **15+ diffusion checkpoints, safetensors-only text encoders** (NVFP4 / INT8), 13 ready-to-use ComfyUI workflows
+  (including **4 SLA-free variants** for drivers older than cu130).
 - **Speed stack on CUDA**: fused 4-step Turbo model, SLA sparse attention, NVFP4 (Blackwell), SageAttention,
   GGUF offload, FFN chunking.
+- **Verified on real hardware (RTX 4090 48GB, 2026-10-13)**: 0.4MP/4 steps **54 s**, 0.6MP/4 steps **84 s**,
+  0.6MP/6 steps **117 s**, 0.98MP/6 steps **243 s** — see `docs/真机踩坑与前置要求.md`.
+- **Two hard prerequisites**: **≥ 60GB free disk** (the balanced tier is 48.25GB) and a **safetensors text
+  encoder** — every GGUF text-encoder repo for H3 lacks the mmproj vision tower, so `ClipLoaderGGUF` crashes.
 - **Sister project**: Huawei Ascend NPU (910B/910C) deployment — see
   [minimax-h3-ascend-uncensored](https://gitcode.com/nxxwjbl/minimax-h3-ascend-uncensored).
 

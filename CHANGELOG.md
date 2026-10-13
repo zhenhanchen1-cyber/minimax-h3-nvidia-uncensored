@@ -3,6 +3,23 @@
 > 这个仓库是**活的** —— 每次新增模型档位、每个社区新工具、每个速度实测都会记在这里。
 > 如果你看到某个仓库内容和这里一模一样但**没有后续更新**，那大概率是搬运的死仓库。
 
+## 2026-10-13
+
+- **新增 [`docs/真机踩坑与前置要求.md`](docs/真机踩坑与前置要求.md)**（本次实测算总账）：
+  开机 30 秒自检清单 → 磁盘不够的三种解法 → GGUF 编码器为何不可用 → SLA 崩溃的完整因果链 →
+  两个已修的脚本 bug → 远程运维小坑 → 实测数据与读数须知。
+- **口径修正（重要）：文本编码器只能 safetensors**。所有 H3 的 GGUF 文本编码器仓库（eraiko / unsloth）
+  都缺 **mmproj 视觉塔**，`ClipLoaderGGUF` 必崩（`TypeError: the JSON object must be str...`，
+  日志先出现 `No mmproj file found`）。README 首屏决策表、模型全家桶、`docs/模型选择指南.md`、
+  `docs/教程-文生视频与图生视频.md`、`NOTICE.md` 全部改口径；GGUF 保留为**主模型**可用路线。
+- **修一个真 bug**：`download.py` 的 minimal 档同时下了 GGUF 编码器（13.1G，装不上）和
+  INT8 safetensors 编码器（26.4G）—— 白下 13GB。已删除 GGUF 编码器条目。
+- **前置条件写进 README**：① 磁盘可用 **≥ 60GB**（balanced 档实测 **48.25GB** + ComfyUI 约 5GB；
+  云主机"数据盘 50G"刚好不够，给出 `COMFY_HOME` + `models` 软链的解法）；
+  ② **SLA 需要 driver cu130+**，否则用新增的 4 套「无SLA版」工作流。
+- **`.gitignore` 补齐**（此前没有，`scripts/__pycache__/*.pyc` 被误入库，本次一并清理）。
+- 文档一致性：工作流清单 9 → **13 套**（含 4 套无SLA版）；教程与工作流对照表补上"驱动不够用哪套"的对应关系。
+
 ## 2026-10-12
 
 - **社区增强件章节** + `scripts/install_extras.sh`：可选安装

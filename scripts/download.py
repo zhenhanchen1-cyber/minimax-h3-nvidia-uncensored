@@ -20,7 +20,6 @@ CHUNK = 64 * 1024 * 1024
 TIERS = {
     "minimal": [   # 8~12GB
         ("unsloth/MiniMax-H3-GGUF", "minimax_h3_fl2va_pruned-Q2_K.gguf", "diffusion_models", "主模型 Q2_K 6.7G"),
-        ("unsloth/MiniMax-H3-GGUF", "qwen3vl_32b_minimax_h3-Q2_K_M.gguf", "text_encoders", "文本编码器 Q2_K_M 13.1G"),
         ("Comfy-Org/MiniMax-H3", "vae/minimax_h3_video_vae_fp16.safetensors", "vae", "视频VAE 5.2G"),
         ("Comfy-Org/MiniMax-H3", "vae/minimax_h3_audio_vae_fp32.safetensors", "vae", "音频VAE 0.6G(必须fp32)"),
         ("Comfy-Org/MiniMax-H3", "loras/minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors", "loras", "4步LoRA"),
@@ -52,7 +51,8 @@ TIERS = {
 
 # 文本编码器：无审查 / 官方
 # 注意：8GB 档（minimal）目前**没有**体积可接受的无审查编码器（最小 15.7G NVFP4 仅 Blackwell、
-# 其次 17.8G eraiko GGUF Q5_K_M），所以 minimal 档下的是官方 Q2_K_M 小档，先把流程跑通。
+# 其次就是 26.4G 的 INT8 safetensors），所以低显存档统一下这个 26.4G 的 INT8 版，
+# 靠 ComfyUI 的卸载机制（--lowvram / RAM offload）跑，而不是换小体积 GGUF（原因见下方说明）。
 # 另外请阅读 README「关于无审查的真相」：编码器只做条件编码，换 heretic 并不等于解锁内容。
 # ⚠️ 为什么这里全是 safetensors，一个 GGUF 都没有（2026-10-13 真机验证）
 # H3 的文本编码器是 Qwen3-VL（多模态，含视觉塔）。市面上所有 H3 的 GGUF 文本编码器仓库
@@ -161,8 +161,8 @@ def main():
     print(f"=== 显存 {vram:.0f}GB → 档位 [{tier}]，文本编码器: {'无审查' if a.uncensored else '官方原版'}")
 
     files = list(TIERS[tier])
-    if tier != "minimal":
-        files = [f for f in files if "qwen3vl" not in f[1]]      # 移除档位里自带的 TE
+    # 档位清单里不再含任何文本编码器（minimal 档早期版本的 GGUF 编码器已删除：
+    # 所有 H3 的 GGUF 文本编码器都缺 mmproj 视觉塔，加载必崩），统一在下面按档位追加。
     if a.nvfp4:
         files.append(("Momoking/Qwen3-VL-32B-Heretic-MiniMax-H3-NVFP4",
                       "qwen3vl_32b_heretic_minimax_h3_nvfp4.safetensors", "text_encoders", "NVFP4 无审查 15.7G"))

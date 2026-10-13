@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# 下载器产生的分片 / 完成标记（模型本身不入库）
+*.p[0-9]*
+*.done
+*.incomplete
+
+# 临时文件
+*.tmp
+*.log
+.DS_Store
+Thumbs.db

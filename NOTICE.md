@@ -10,7 +10,7 @@
 | MiniMax-H3 官方权重（fl2va / ref2va / VAE） | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3) | 遵循 **MiniMax H3 Community License** |
 | 融合加速模型（fused turbo int8 convrot） | [MATLOWAI/minimax-h3-fused-turbo-int8-convrot](https://huggingface.co/MATLOWAI/minimax-h3-fused-turbo-int8-convrot) | 社区公开权重 |
 | GGUF 量化（主模型） | [unsloth/MiniMax-H3-GGUF](https://huggingface.co/unsloth/MiniMax-H3-GGUF)、[Abiray/MiniMax-H3-Pruned-GGUF](https://huggingface.co/Abiray/MiniMax-H3-Pruned-GGUF) | 社区公开权重 |
-| 无审查文本编码器（GGUF） | [eraiko/Qwen3-VL-32B-Ultra-Heretic-Minimax-H3-GGUF](https://huggingface.co/eraiko/Qwen3-VL-32B-Ultra-Heretic-Minimax-H3-GGUF) | 社区公开权重 |
+| ~~无审查文本编码器（GGUF）~~ | [eraiko/Qwen3-VL-32B-Ultra-Heretic-Minimax-H3-GGUF](https://huggingface.co/eraiko/Qwen3-VL-32B-Ultra-Heretic-Minimax-H3-GGUF) | ❌ **H3 不可用**：缺 mmproj 视觉塔，`ClipLoaderGGUF` 必崩（2026-10-13 真机验证） |
 | 无审查文本编码器（NVFP4） | [Momoking/Qwen3-VL-32B-Heretic-MiniMax-H3-NVFP4](https://huggingface.co/Momoking/Qwen3-VL-32B-Heretic-MiniMax-H3-NVFP4) | 社区公开权重 |
 | 无审查文本编码器（INT8 ConvRot） | [ethanfel/Qwen3-VL-32B-Ultra-Heretic-MiniMax-H3-ComfyUI-INT8-ConvRot](https://huggingface.co/ethanfel/Qwen3-VL-32B-Ultra-Heretic-MiniMax-H3-ComfyUI-INT8-ConvRot) | 社区公开权重 |
 | Turbo LoRA（官方 4 步 / 8 步） | [lightx2v/Minimax-h3-Turbo](https://huggingface.co/lightx2v/Minimax-h3-Turbo) | 蒸馏方法开源于 [ModelTC/Minimax-H3-Turbo](https://github.com/ModelTC/Minimax-H3-Turbo) |
