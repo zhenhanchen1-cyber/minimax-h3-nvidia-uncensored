@@ -98,6 +98,30 @@ N 卡（CUDA）生态有昇腾目前没有的一整套加速件，同样的成�
 
 ---
 
+## 📊 真机实测数据（RTX 4090 48GB · 2026-10-13）
+
+固定同一张图 + 同一段提示词，seed=42，图生视频 124 帧（5.17 秒）：
+
+| 档位 | 分辨率 | 步数 | **端到端** | 每步 | 显存峰值 |
+|---|---|---|---|---|---|
+| 极速 | 832×480（0.4MP） | 4 | **54.0 s** | ≈8 s | 48.5 GB |
+| 日常 | 1024×576（0.6MP） | 4 | **84.1 s** | ≈16.5 s | 48.2 GB |
+| 质量 | 1024×576（0.6MP） | 6 | **117.1 s** | 15.35 s | 48.2 GB |
+| 高清 | 1344×768（0.98MP） | 6 | **243.1 s** | ≈37 s | 48.1 GB |
+
+**三条结论：**
+
+1. **分辨率是最大杠杆** —— 0.4MP→0.98MP 分辨率只涨 2.4 倍，**每步耗时涨 4.6 倍**。想快先降分辨率。
+2. **步数是线性杠杆** —— 多 2 步多约 33 秒。日常 4 步，要画质 6 步。
+3. **48GB 刚好够** —— 峰值稳定 48.1~48.5GB，说明 **24GB 卡必须走 offload，会明显更慢**。
+
+> ⚠️ 读数须知：① 这批数据**未启用 SLA**（测试机驱动偏旧，`comfy_kitchen` 注意力核起不来），
+> 属**保守值**，驱动正常的环境会更快；② 冷启动额外 20~25 秒（要加载 26GB 编码器 + 21GB 主模型）。
+> 完整记录见 [N卡实测数据-4090-48G.md](https://gitcode.com/nxxwjbl/minimax-h3-nvidia-uncensored) 与
+> [docs/工作流对照表.md](docs/工作流对照表.md)。
+
+---
+
 ## 🚀 快速开始（两条命令）
 
 ```bash
@@ -262,15 +286,24 @@ bash scripts/install_extras.sh spectrum     # 只装某一个
 
 ## 📁 工作流清单
 
-| 文件 | 用途 |
-|---|---|
-| `01_官方-图生视频-i2v.json` | Comfy-Org 官方图生视频模板 |
-| `MATLOWAI-01_reference_4step_sla.json` | ⭐ 文生视频，4 步 + SLA（**最快**） |
-| `MATLOWAI-02_derope_4plus4_sla.json` | 4+4 去绳索 + 运动平滑（慢但运镜更顺） |
-| `MATLOWAI-03_derope_dyrope_pb3049_warm375.json` | 上者 + DyRoPE + warm375 适配器 |
-| `MATLOWAI-04_i2v_fl2v_4step_sla.json` | ⭐ 图生视频 4 步（实测 107 帧 @1152×640 仅 25 秒） |
-| `MATLOWAI-05_ref2va_4step_sla.json` | ⭐ 参考图锁角色 4 步 |
-| `低显存-*.json`（3 个） | 加了 FFN 分块的低显存版，**16GB 及以下用这套** |
+**先分清要喂不喂图**：文生视频（只写提示词）／图生视频（喂首帧图）／参考图锁角色（喂参考图）。
+完整对照见 **[docs/工作流对照表.md](docs/工作流对照表.md)**。
+
+| 文件 | 类型 | 用途 |
+|---|---|---|
+| `MATLOWAI-01_reference_4step_sla.json` | **文生视频** | ⭐ 基线档，最快（0.7MP / 4 步） |
+| `MATLOWAI-02_derope_4plus4_sla.json` | 文生视频 | 4+4 去绳索 + 运动平滑（慢但运镜更顺） |
+| `MATLOWAI-03_derope_dyrope_pb3049_warm375.json` | 文生视频 | 上者 + DyRoPE + warm375 适配器 |
+| `MATLOWAI-04_i2v_fl2v_4step_sla.json` | **图生视频** | ⭐ 主力，首帧图 → 视频；`last_frame` 再喂一张即首尾帧 |
+| `01_官方-图生视频-i2v.json` | 图生视频 | Comfy-Org 官方模板，可作对照基线 |
+| `MATLOWAI-05_ref2va_4step_sla.json` | **参考图锁角色** | ⭐ 锁人物 / 服装 / 画风（需换 ref2va 主模型） |
+| `低显存-*.json`（3 个） | 各类型 | 加了 FFN 分块，**16GB 及以下用这套**；24GB+ 别用（反而更慢） |
+
+> ⚠️ **两个已知坑（2026-10-13 真机验证）**
+> 1. **不要用 GGUF 文本编码器** —— 所有 H3 的 GGUF 编码器仓库都没有 mmproj 视觉塔，
+>    `ClipLoaderGGUF` 会崩。必须用 safetensors + 官方 `CLIPLoader`（`download.py` 已改成默认下 safetensors）。
+> 2. **`H3SLAAttention` 需要 cu130+ 驱动**，否则报 `CUDA driver version is insufficient`。
+>    驱动偏旧时把 SLA 节点旁路（模型直连 SigmaShift）即可正常出片，只是慢一些。
 
 > 依赖节点：`ComfyUI-GGUF`（GGUF 加载）、`ComfyUI-PlagueKind-Nodes`（SLA）、
 > `ComfyUI-MAINodes`（de-rope / DyRoPE / 音频）、`KJNodes`（FFN 分块）。

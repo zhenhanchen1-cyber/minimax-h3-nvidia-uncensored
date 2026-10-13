@@ -54,15 +54,23 @@ TIERS = {
 # 注意：8GB 档（minimal）目前**没有**体积可接受的无审查编码器（最小 15.7G NVFP4 仅 Blackwell、
 # 其次 17.8G eraiko GGUF Q5_K_M），所以 minimal 档下的是官方 Q2_K_M 小档，先把流程跑通。
 # 另外请阅读 README「关于无审查的真相」：编码器只做条件编码，换 heretic 并不等于解锁内容。
+# ⚠️ 为什么这里全是 safetensors，一个 GGUF 都没有（2026-10-13 真机验证）
+# H3 的文本编码器是 Qwen3-VL（多模态，含视觉塔）。市面上所有 H3 的 GGUF 文本编码器仓库
+# （eraiko / unsloth）都只放了纯文本权重，**没有 mmproj 视觉塔文件**。
+# 于是 ComfyUI-GGUF 的 ClipLoaderGGUF 建不出 tokenizer，直接报
+# `TypeError: the JSON object must be str, bytes or bytearray, not NoneType`
+# （日志里先出现 "No mmproj file found for ..."）。
+# 结论：GGUF 路线对 H3 走不通，必须用 safetensors + 官方 CLIPLoader。
 TEXT_ENCODERS = {
-    ("uncensored", "minimal"): ("unsloth/MiniMax-H3-GGUF", "qwen3vl_32b_minimax_h3-Q2_K_M.gguf", 13.1),
-    ("uncensored", "balanced"): ("eraiko/Qwen3-VL-32B-Ultra-Heretic-Minimax-H3-GGUF",
-                                 "qwen3-vl-32b-ultra-heretic-minimax-h3-q5_k_m.gguf", 17.8),
-    ("uncensored", "quality"): ("eraiko/Qwen3-VL-32B-Ultra-Heretic-Minimax-H3-GGUF",
-                                "qwen3-vl-32b-ultra-heretic-minimax-h3-q6_k.gguf", 20.6),
-    ("uncensored", "max"): ("eraiko/Qwen3-VL-32B-Ultra-Heretic-Minimax-H3-GGUF",
-                            "qwen3-vl-32b-ultra-heretic-minimax-h3-q8.gguf", 26.7),
-    ("official", "minimal"): ("unsloth/MiniMax-H3-GGUF", "qwen3vl_32b_minimax_h3-Q2_K_M.gguf", 13.1),
+    ("uncensored", "minimal"): ("ethanfel/Qwen3-VL-32B-Ultra-Heretic-H3-ComfyUI-INT8-ConvRot",
+                                "qwen3vl_32b_h3_ultra_uncensored_heretic_int8_convrot.safetensors", 26.4),
+    ("uncensored", "balanced"): ("ethanfel/Qwen3-VL-32B-Ultra-Heretic-H3-ComfyUI-INT8-ConvRot",
+                                 "qwen3vl_32b_h3_ultra_uncensored_heretic_int8_convrot.safetensors", 26.4),
+    ("uncensored", "quality"): ("ethanfel/Qwen3-VL-32B-Ultra-Heretic-H3-ComfyUI-INT8-ConvRot",
+                                "qwen3vl_32b_h3_ultra_uncensored_heretic_int8_convrot.safetensors", 26.4),
+    ("uncensored", "max"): ("ethanfel/Qwen3-VL-32B-Ultra-Heretic-H3-ComfyUI-INT8-ConvRot",
+                            "qwen3vl_32b_h3_ultra_uncensored_heretic_int8_convrot.safetensors", 26.4),
+    ("official", "minimal"): ("Comfy-Org/MiniMax-H3", "text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors", 27.1),
     ("official", "balanced"): ("Comfy-Org/MiniMax-H3", "text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors", 27.1),
     ("official", "quality"): ("Comfy-Org/MiniMax-H3", "text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors", 27.1),
     ("official", "max"): ("Comfy-Org/MiniMax-H3", "text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors", 27.1),
@@ -162,8 +170,8 @@ def main():
         key = "uncensored" if a.uncensored else "official"
         repo, rpath, gb = TEXT_ENCODERS[(key, tier)]
         note = f"文本编码器 {gb}G"
-        if key == "uncensored" and tier == "minimal":
-            note += "（提示：8GB 档无小体积无审查编码器，此为官方小档；无审查见 README「真相」节）"
+        if key == "uncensored" and tier in ("minimal", "balanced"):
+            note += "（注：H3 的 GGUF 编码器缺视觉塔，无法加载；统一用这个 INT8 safetensors，靠 RAM 卸载跑低显存）"
         files.append((repo, rpath, "text_encoders", note))
 
     print(f"共 {len(files)} 个文件，下载到 {M}\n")
